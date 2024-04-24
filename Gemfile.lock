@@ -1,16 +1,16 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    curb (1.0.5)
     rake (13.2.1)
+    ruby-progressbar (1.13.0)
 
 PLATFORMS
   arm64-darwin-22
   ruby
 
 DEPENDENCIES
-  curb
   rake
+  ruby-progressbar
 
 BUNDLED WITH
    2.5.7

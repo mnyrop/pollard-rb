@@ -1,16 +1,14 @@
 require 'date'
 require 'fileutils'
 require 'json'
+require 'ruby-progressbar'
+
 require_relative 'pollard'
 
 INPUT_FILE                = Dir.glob("./data/in/root*.csv").first
-OUTPUT_DIR                = "./data/out/#{DateTime.now.strftime("%m-%d-%Y")}"
 NOT_CHECKED_RESULTS_FILE  = "#{OUTPUT_DIR}/not-checked.json"
 FOUND_RESULTS_FILE        = "#{OUTPUT_DIR}/found.json"
 NOT_FOUND_RESULTS_FILE    = "#{OUTPUT_DIR}/not-found.json"
-
-FileUtils.rm_rf   OUTPUT_DIR
-FileUtils.mkdir_p OUTPUT_DIR
 
 keys_to_keep    = ["Domain", "Email", "Is Suspended"]
 data            = CSV.foreach(INPUT_FILE, headers: true).map(&:to_h)
@@ -48,22 +46,26 @@ end
 puts "NOT CHECKED: #{users_to_skip.length}"
 File.write(NOT_CHECKED_RESULTS_FILE, JSON.pretty_generate(users_to_skip))
 
-users_to_check.take(10).each_with_index do |hash, idx|
+# progressbar = ProgressBar.create(:title => "Users", :total => users_to_check.length)
+
+users_to_check.each_with_index do |hash, idx|
   netID = hash['netid']
   puts "checking #{netID} (#{idx}/#{users_to_check.length})"
   result = lookup(netID)
   if result.is_a?(Hash)
-    not_found_users << hash.merge(result)
-  elsif result.is_a?(Array) and result.first.is_a?(Hash)
-    puts "-" + result.map { |r| r["affiliation_sub_type"] }.to_s
-    found_users << hash.merge(result.first)
+    hash["response"] = result
+    not_found_users << hash
+  elsif result.is_a?(Array)
+    hash["identity"] = result
+    found_users << hash
   else 
     puts "Couldn't handle #{netID}!"
   end
+  # progressbar.increment
 end
 
 puts "FOUND: #{found_users.length}"
-File.write(FOUND_RESULTS_FILE, JSON.pretty_generate(found_users), mode: 'a+')
+File.write(FOUND_RESULTS_FILE, JSON.pretty_generate(found_users))
 
 puts "NOT FOUND: #{not_found_users.length}"
-File.write(NOT_FOUND_RESULTS_FILE, JSON.pretty_generate(not_found_users), mode: 'a+')
+File.write(NOT_FOUND_RESULTS_FILE, JSON.pretty_generate(not_found_users))
