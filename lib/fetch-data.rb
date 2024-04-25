@@ -6,9 +6,12 @@ require 'ruby-progressbar'
 require_relative 'pollard'
 
 INPUT_FILE                = Dir.glob("./data/in/root*.csv").first
+NETID_MAP_FILE            = "./data/in/netid_map.json"
 NOT_CHECKED_RESULTS_FILE  = "#{OUTPUT_DIR}/not-checked.json"
 FOUND_RESULTS_FILE        = "#{OUTPUT_DIR}/found.json"
 NOT_FOUND_RESULTS_FILE    = "#{OUTPUT_DIR}/not-found.json"
+TOKEN                     = JSON.parse File.read(TOKEN_FILE)
+NETID_MAP                 = JSON.parse File.read(NETID_MAP_FILE)
 
 keys_to_keep    = ["Domain", "Email", "Is Suspended"]
 data            = CSV.foreach(INPUT_FILE, headers: true).map(&:to_h)
@@ -25,6 +28,11 @@ data.each do |hash|
   next if hash["Is Suspended"] == "1"
 
   if hash["Email"].to_s.end_with?('@nyu.edu')
+    if NETID_MAP.key?(hash["Email"])
+      hash["Contact Email"] = hash["Email"]
+      puts "swapping #{hash["Email"]} for #{NETID_MAP[hash["Email"]]}!"
+      hash["Email"] = NETID_MAP[hash["Email"]] 
+    end
     hash['netid'] = hash["Email"].to_s.sub('@nyu.edu', '')
     users_to_check << hash
   else
@@ -32,12 +40,8 @@ data.each do |hash|
   end
 end
 
-def read_token 
-  JSON.parse File.read(TOKEN_FILE)
-end
-
 def lookup(netID)
-  cmd   = "curl --silent -L 'https://api.nyu.edu/identity-v2-sys/identity/unique-id/#{netID}?api_access_id=#{SECRETS["API_ACCESS_ID"]}' -H 'Authorization: Bearer #{read_token["access_token"]}'"
+  cmd   = "curl --silent -L 'https://api.nyu.edu/identity-v2-sys/identity/unique-id/#{netID}?api_access_id=#{SECRETS["API_ACCESS_ID"]}' -H 'Authorization: Bearer #{TOKEN["access_token"]}'"
   resp  = `#{cmd}`
   JSON.parse(resp)
 end
